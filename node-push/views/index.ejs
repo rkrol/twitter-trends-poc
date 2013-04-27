@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+body {
+  font: 10px sans-serif;
+}
+
+.arc path {
+  stroke: #fff;
+}
+
+</style>
+
+<script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script>
+<script type="text/javascript" src="javascripts/socket.io/socket.io.js"></script>
+
+<body>
+
+<script>
+
+<!-- Version avec texte mais qui marche pas... -->
+
+var width = 960,
+    height = 500,
+    radius = Math.min(width, height) / 2;
+
+var color = d3.scale.category20();
+
+var dataset = [{"count":28,"fields":[100],"object":"FF"},{"count":16,"fields":[100],"object":"RT"},{"count":14,"fields":[100],"object":"UnlockHeartAttack"},{"count":13,"fields":[100],"object":"СДнемРожденияВика"},{"count":9,"fields":[100],"object":"gameinsight"},{"count":9,"fields":[100],"object":"KCA"},{"count":9,"fields":[100],"object":"8CosasQueAmo"},{"count":8,"fields":[100],"object":"VoteOneDirectionForTheKCA"},{"count":8,"fields":[100],"object":"androidgames"},{"count":8,"fields":[100],"object":"android"}];
+
+var arc = d3.svg.arc()
+    .innerRadius(radius - 100)
+    .outerRadius(radius - 20);
+
+var svg = d3.select("body")
+  .append("svg")
+    .attr("width", width)
+    .attr("height", height)
+  .append("g")
+    .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+var pie = d3.layout.pie()
+    .value(function(d) { return d.count; });
+
+var g = svg.selectAll(".arc")
+    .data(pie(dataset))
+  .enter().append("g")
+    .attr("class", "arc");
+
+var path = g.append("path")
+    .attr("fill", function(d, i) { return color(i); })
+    .attr("d", arc)
+    .each(function(d) { this._current = d; });
+
+var text = g.append("text")
+      .attr("transform", function(d) { return "translate(" + arc.centroid(d) + ")"; })
+      .attr("dy", ".35em")
+      .style("text-anchor", "middle")
+      .text(function(d) { return d.data.object; })
+      .each(function(d) { this._currentText = d; });
+
+g.on("click", alert("test"));
+
+
+function change(rankings) {
+  g = g.data(pie(rankings));
+  path = path.data(pie(rankings)); // update the data
+  text = text.data(pie(rankings));
+  path.transition().ease("elastic").duration(750).attrTween("d", arcTween); // redraw the arcs
+  text.transition().ease("elastic").duration(750)
+        .attr("transform", function(d) {return "translate(" + arc.centroid(d) + ")"; })
+        .style("fill-opacity", function(d) {return d.value==0 ? 1e-6 : 1;})
+        .text(function(d) { return d.data.object; });
+}
+
+
+
+// Store the displayed angles in _current.
+// Then, interpolate from _current to the new angles.
+// During the transition, _current is updated in-place by d3.interpolate.
+function arcTween(a) {
+  var i = d3.interpolate(this._current, a);
+  this._current = i(0);
+  return function(t) {
+    return arc(i(t));
+  };
+}
+
+var socket = io.connect('http://localhost');
+
+socket.on('message', function (message) {
+   change(message.rankings);
+   console.log(JSON.stringify(message.rankings));
+});
+
+</script>
+</body>
+</html>
